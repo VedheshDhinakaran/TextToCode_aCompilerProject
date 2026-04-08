@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NL to Code Compiler</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 15px;
+            margin: 0;
+            background: #1e293b;
+            border-bottom: 2px solid #334155;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        /* LEFT PANEL */
+        .left {
+            width: 50%;
+            padding: 15px;
+            border-right: 2px solid #334155;
+            overflow-y: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #020617;
+            color: #38bdf8;
+            border: 1px solid #334155;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #2563eb;
+        }
+
+        /* RIGHT PANEL */
+        .right {
+            width: 50%;
+            padding: 15px;
+        }
+
+        select {
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #020617;
+            color: white;
+            border: 1px solid #334155;
+        }
+
+        .code-box {
+            background: #020617;
+            padding: 15px;
+            height: 80%;
+            overflow-y: auto;
+            border: 1px solid #334155;
+            color: #22c55e;
+        }
+
+        /* DEBUG BUTTONS */
+        .debug-buttons {
+            margin-top: 15px;
+        }
+
+        .debug-buttons button {
+            margin: 5px 5px 5px 0;
+            background: #64748b;
+        }
+
+        .debug-buttons button:hover {
+            background: #475569;
+        }
+
+        .debug-output {
+            display: none;
+            background: #020617;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #334155;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+
+        img {
+            margin-top: 10px;
+            border: 1px solid #334155;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<h1>🚀 Natural Language Compiler</h1>
+
+<div class="container">
+
+    <!-- LEFT SIDE -->
+    <div class="left">
+
+        <h3>Input</h3>
+        <textarea id="inputText" placeholder="Enter algorithm..."></textarea>
+
+        <br>
+        <button onclick="compileText()">Compile</button>
+
+        <!-- DEBUG BUTTONS -->
+        <div class="debug-buttons">
+            <button onclick="toggle('tokens')">Tokens</button>
+            <button onclick="toggle('ir')">IR</button>
+            <button onclick="toggle('cfg')">CFG</button>
+            <button onclick="toggle('analysis')">Analysis</button>
+            <button onclick="toggle('ast')">AST</button>
+            <button onclick="toggle('flowchart')">Flowchart</button>
+            <button onclick="toggle('errors')">Errors</button>
+        </div>
+
+        <!-- OUTPUT BLOCKS -->
+        <div id="tokens" class="debug-output"></div>
+        <div id="ir" class="debug-output"></div>
+        <div id="cfg" class="debug-output"></div>
+        <div id="analysis" class="debug-output"></div>
+        <div id="ast" class="debug-output"></div>
+        <div id="errors" class="debug-output"></div>
+
+        <img id="flowchart" width="100%" style="display:none"/>
+
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right">
+
+        <h3>Generated Code</h3>
+
+        <select id="language">
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+        </select>
+
+        <div class="code-box" id="code">
+            Your code will appear here...
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+let lastData = null;
+
+async function compileText() {
+    const text = document.getElementById("inputText").value;
+    const language = document.getElementById("language").value;
+
+    const response = await fetch('/compile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text, language: language })
+    });
+
+    const data = await response.json();
+    lastData = data;
+
+    // RIGHT SIDE CODE
+    document.getElementById("code").innerText = data.code;
+
+    // LEFT SIDE DATA
+    document.getElementById("tokens").innerText =
+        JSON.stringify(data.tokens, null, 2);
+
+    document.getElementById("ir").innerText =
+        JSON.stringify(data.ir, null, 2);
+
+    document.getElementById("cfg").innerText =
+        JSON.stringify(data.cfg, null, 2);
+
+    document.getElementById("analysis").innerText =
+        JSON.stringify({
+            dead_code: data.dead_code,
+            cycles: data.cycles,
+            branch_errors: data.branch_errors
+        }, null, 2);
+
+    document.getElementById("ast").innerText =
+        JSON.stringify(data.ast, null, 2);
+
+    document.getElementById("errors").innerText =
+        JSON.stringify(data.errors, null, 2);
+
+    if (data.flowchart) {
+        const img = document.getElementById("flowchart");
+        img.src = data.flowchart + "?t=" + new Date().getTime();
+    }
+}
+
+function toggle(id) {
+    const el = document.getElementById(id);
+
+    if (id === "flowchart") {
+        el.style.display = el.style.display === "none" ? "block" : "none";
+        return;
+    }
+
+    el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+</script>
+
+</body>
+</html>
