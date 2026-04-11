@@ -30,23 +30,25 @@ class NLPProcessor:
         suggestions = []
 
         for sentence in sentences:
-            intent, confidence, data = self.classify(sentence)
+            intent, confidence, data = self.classify(sentence["text"])
 
             if confidence < 0.7:
                 suggestions.append({
-                    "sentence": sentence,
+                    "sentence": sentence["text"],
                     "suggested_intent": intent,
                     "confidence": confidence
                 })
 
             if intent == "UNKNOWN":
-                errors.append(f"Could not understand: '{sentence}'")
+                errors.append(f"Could not understand: '{sentence['text']}'")
                 continue
 
             tokens.append({
                 "type": intent,
                 "data": data,
-                "raw": sentence
+                "raw": sentence["text"],
+                "indent": sentence["indent"],
+                "line": sentence["line"]
             })
 
         return {
@@ -59,13 +61,36 @@ class NLPProcessor:
     # PREPROCESSOR
     # -------------------------
     def preprocess(self, text):
-        text = text.lower()
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
 
-        for k, v in self.synonyms.items():
-            text = text.replace(k, v)
+        sentences = []
+        for line_no, raw_line in enumerate(text.split('\n')):
+            indent = len(raw_line) - len(raw_line.lstrip(' '))
+            line = raw_line.strip().lower()
 
-        sentences = re.split(r'[.?!]\s*', text)
-        return [s.strip() for s in sentences if s.strip()]
+            if not line:
+                continue
+
+            for k, v in self.synonyms.items():
+                line = line.replace(k, v)
+
+            # allow inline `then`, comma-separated bodies, and inline else clauses
+            line = re.sub(r'\bthen\b', '. ', line)
+            line = re.sub(r',\s*', '. ', line)
+            line = re.sub(r'\belse\b', '. else. ', line)
+            line = re.sub(r'\s+', ' ', line)
+
+            parts = re.split(r'[.?!;]\s*', line)
+            for part in parts:
+                part = part.strip()
+                if part:
+                    sentences.append({
+                        "text": part,
+                        "indent": indent,
+                        "line": line_no
+                    })
+
+        return sentences
 
     # -------------------------
     # INTENT CLASSIFIER
@@ -99,6 +124,15 @@ class NLPProcessor:
                 "value": value
             }
 
+        # INPUT
+        match = re.match(r'input (\w+)', sentence)
+        if match:
+            var = match.group(1)
+            return "ASSIGN", 0.95, {
+                "var": var,
+                "value": "input()"
+            }
+
         # IF
         match = re.match(r'if (.+)', sentence)
         if match:
@@ -130,7 +164,11 @@ class NLPProcessor:
     # CONDITION TRANSLATOR
     # -------------------------
     def translate_condition(self, text):
-        for phrase, symbol in self.condition_map.items():
+        text = text.replace(" mod ", " % ")
+
+        # replace longer phrases first so "greater than or equal to" does not
+        # get transformed into "greater than" + "equal to"
+        for phrase, symbol in sorted(self.condition_map.items(), key=lambda kv: len(kv[0]), reverse=True):
             text = text.replace(phrase, symbol)
 
         text = text.replace(" is ", " ")

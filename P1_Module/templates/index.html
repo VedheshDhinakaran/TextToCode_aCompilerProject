@@ -77,6 +77,8 @@
             overflow-y: auto;
             border: 1px solid #334155;
             color: #22c55e;
+            white-space: pre;
+            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
         }
 
         /* DEBUG BUTTONS */
@@ -185,7 +187,7 @@ async function compileText() {
     lastData = data;
 
     // RIGHT SIDE CODE
-    document.getElementById("code").innerText = data.code;
+    document.getElementById("code").textContent = data.code;
 
     // LEFT SIDE DATA
     document.getElementById("tokens").innerText =

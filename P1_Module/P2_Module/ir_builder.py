@@ -3,12 +3,16 @@ class IRBuilder:
     def __init__(self):
         self.node_id = 1
 
-    def new_node(self, type_, **kwargs):
+    def new_node(self, type_, indent=None, line=None, **kwargs):
         node = {
             "id": self.node_id,
             "type": type_,
             **kwargs
         }
+        if indent is not None:
+            node["indent"] = indent
+        if line is not None:
+            node["line"] = line
         self.node_id += 1
         return node
 
@@ -21,35 +25,37 @@ class IRBuilder:
 
         for token in tokens:
             t = token["type"]
+            indent = token.get("indent", 0)
+            line = token.get("line", 0)
 
             # =========================
             # START / END
             # =========================
             if t == "START":
-                node = self.new_node("start")
+                node = self.new_node("start", indent=indent, line=line)
 
             elif t == "END":
-                node = self.new_node("end")
+                node = self.new_node("end", indent=indent, line=line)
 
             # =========================
             # ASSIGNMENT
             # =========================
             elif t == "ASSIGN":
                 code = f"{token['data']['var']} = {token['data']['value']}"
-                node = self.new_node("process", code=code)
+                node = self.new_node("process", code=code, indent=indent, line=line)
 
             # =========================
             # OUTPUT
             # =========================
             elif t == "OUTPUT":
                 code = f"print({token['data']['value']})"
-                node = self.new_node("output", code=code)
+                node = self.new_node("output", code=code, indent=indent, line=line)
 
             # =========================
             # IF
             # =========================
             elif t == "IF":
-                node = self.new_node("decision", condition=token['data']['condition'])
+                node = self.new_node("decision", condition=token['data']['condition'], indent=indent, line=line)
 
                 stack.append({
                     "type": "IF",
@@ -60,13 +66,13 @@ class IRBuilder:
             # ELSE
             # =========================
             elif t == "ELSE":
-                node = self.new_node("else")
+                node = self.new_node("else", indent=indent, line=line)
 
             # =========================
             # WHILE
             # =========================
             elif t == "WHILE":
-                node = self.new_node("loop", condition=token['data']['condition'])
+                node = self.new_node("loop", condition=token['data']['condition'], indent=indent, line=line)
 
                 stack.append({
                     "type": "LOOP",
@@ -81,7 +87,9 @@ class IRBuilder:
                     "for",
                     var=token["data"]["var"],
                     start=token["data"]["start"],
-                    end=token["data"]["end"]
+                    end=token["data"]["end"],
+                    indent=indent,
+                    line=line
                 )
 
                 stack.append({
@@ -93,7 +101,7 @@ class IRBuilder:
             # LOOP END ✅ FIXED
             # =========================
             elif t == "LOOP_END":
-                node = self.new_node("loop_end")
+                node = self.new_node("loop_end", indent=indent, line=line)
 
                 if stack:
                     top = stack[-1]
