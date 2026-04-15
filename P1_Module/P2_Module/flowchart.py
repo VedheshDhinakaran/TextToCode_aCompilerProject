@@ -17,6 +17,12 @@ class FlowchartGenerator:
                     dot.node(node_id, "End", shape="oval")
                 elif node["type"] == "decision":
                     dot.node(node_id, node.get("condition", ""), shape="diamond")
+                elif node["type"] == "for":
+                    var = node.get("var", "i")
+                    start = node.get("start", "0")
+                    end = node.get("end", "10")
+                    label = f"for {var} in range({start}, {end})"
+                    dot.node(node_id, label, shape="hexagon")
                 else:
                     dot.node(node_id, node.get("code", ""), shape="box")
 

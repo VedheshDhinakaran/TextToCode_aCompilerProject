@@ -4,7 +4,7 @@ class ASTOptimizer:
         values = {}
 
         for stmt in program.body.statements:
-            if hasattr(stmt, "var"):
+            if hasattr(stmt, "var") and hasattr(stmt, "value"):
                 try:
                     val = int(stmt.value)
                     values[stmt.var] = val

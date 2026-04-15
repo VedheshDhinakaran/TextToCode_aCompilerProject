@@ -15,12 +15,12 @@ class ASTBuilder:
         return Program(Block(self.parse_block(is_root=True)))
 
     def should_end_block(self, node, base_indent, parent_line, is_root):
-        t = node.get("type", "").lower()
-        if t in ["else", "loop_end", "end"]:
-            return True
-
         if is_root:
             return False
+
+        t = node.get("type", "").lower()
+        if t in ["else", "end"]:
+            return True
 
         indent = node.get("indent", 0)
         line = node.get("line", -1)
@@ -122,12 +122,25 @@ class ASTBuilder:
             # LOOP END
             # =====================
             elif t == "loop_end":
+                self.i += 1
                 return stmts
 
             # =====================
             # END
             # =====================
             elif t == "end":
+                self.i += 1
+                if is_root:
+                    continue
+                return stmts
+
+            # =====================
+            # END IF
+            # =====================
+            elif t == "end_if":
+                self.i += 1
+                if is_root:
+                    continue
                 return stmts
 
             self.i += 1

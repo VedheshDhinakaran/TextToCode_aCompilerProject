@@ -21,6 +21,7 @@ class IRBuilder:
         edges = []
 
         prev_id = None
+        prev_node = None
         stack = []
 
         for token in tokens:
@@ -59,7 +60,10 @@ class IRBuilder:
 
                 stack.append({
                     "type": "IF",
-                    "node_id": node["id"]
+                    "node_id": node["id"],
+                    "has_else": False,
+                    "true_target": False,
+                    "indent": indent
                 })
 
             # =========================
@@ -67,6 +71,9 @@ class IRBuilder:
             # =========================
             elif t == "ELSE":
                 node = self.new_node("else", indent=indent, line=line)
+
+                if stack and stack[-1]["type"] == "IF":
+                    stack[-1]["has_else"] = True
 
             # =========================
             # WHILE
@@ -76,7 +83,8 @@ class IRBuilder:
 
                 stack.append({
                     "type": "LOOP",
-                    "start_id": node["id"]
+                    "start_id": node["id"],
+                    "indent": indent
                 })
 
             # =========================
@@ -94,7 +102,8 @@ class IRBuilder:
 
                 stack.append({
                     "type": "FOR",
-                    "start_id": node["id"]
+                    "start_id": node["id"],
+                    "indent": indent
                 })
 
             # =========================
@@ -117,8 +126,13 @@ class IRBuilder:
                                 "label": "loop_back"
                             })
 
-            else:
-                continue
+            # =========================
+            # END IF
+            # =========================
+            elif t == "END_IF":
+                node = self.new_node("end_if", indent=indent, line=line)
+                if stack and stack[-1]["type"] == "IF":
+                    stack.pop()
 
             # =========================
             # ADD NODE
@@ -128,7 +142,7 @@ class IRBuilder:
             # =========================
             # NORMAL FLOW EDGE
             # =========================
-            if prev_id:
+            if prev_id and prev_node and prev_node["type"] != "decision" and t != "ELSE":
                 edges.append({
                     "from": prev_id,
                     "to": node["id"]
@@ -138,15 +152,14 @@ class IRBuilder:
             # IF / ELSE EDGES
             # =========================
             if stack:
-                top = stack[-1]
-
-                if top["type"] == "IF":
-                    if t != "ELSE":
+                for ctx in stack:
+                    if ctx["type"] == "IF" and t != "ELSE" and not ctx.get("has_else", False) and node["id"] != ctx["node_id"] and not ctx.get("true_target", False):
                         edges.append({
-                            "from": top["node_id"],
+                            "from": ctx["node_id"],
                             "to": node["id"],
                             "label": "true"
                         })
+                        ctx["true_target"] = True
 
                 if t == "ELSE":
                     if stack and stack[-1]["type"] == "IF":
@@ -157,6 +170,7 @@ class IRBuilder:
                         })
 
             prev_id = node["id"]
+            prev_node = node
 
         return {
             "nodes": nodes,
