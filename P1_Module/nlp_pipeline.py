@@ -4,7 +4,6 @@ class NLPProcessor:
 
     def __init__(self):
         self.synonyms = {
-            # Output/print synonyms
             "display": "print",
             "show": "print",
             "output": "print",
@@ -13,8 +12,7 @@ class NLPProcessor:
             "say": "print",
             "tell": "print",
             "echo": "print",
-            
-            # Assignment/set synonyms
+
             "initialize": "set",
             "assign": "set",
             "let": "set",
@@ -24,42 +22,36 @@ class NLPProcessor:
             "declare": "set",
             "put": "set",
             "store": "set",
-            
-            # Start/begin synonyms
+
             "begin": "start",
             "commence": "start",
             "initiate": "start",
             "launch": "start",
-            
-            # End/finish synonyms
+
             "finish": "end",
             "terminate": "end",
             "stop": "end",
             "complete": "end",
             "conclude": "end",
             "halt": "end",
-            
-            # Else synonyms
+
             "otherwise": "else",
             "or": "else",
             "or else": "else",
             "in other cases": "else",
             "alternative": "else",
             "alternatively": "else",
-            
-            # While/repeat synonyms
+
             "repeat": "while",
             "loop": "while",
             "as long as": "while",
             "until": "while",
             "whilst": "while",
-            
-            # For/iterate synonyms
+
             "iterate": "for",
             "for each": "for",
             "repeat for": "for",
-            
-            # If/conditional synonyms
+
             "when": "if",
             "in case": "if",
             "provided that": "if",
@@ -88,6 +80,28 @@ class NLPProcessor:
             "smaller than": "<",
             "lesser than": "<"
         }
+
+    # -------------------------
+    # 🔥 NEW: EXPRESSION NORMALIZER
+    # -------------------------
+    def normalize_expression(self, expr):
+        replacements = {
+            " plus ": " + ",
+            " minus ": " - ",
+            " times ": " * ",
+            " multiplied by ": " * ",
+            " divide ": " / ",
+            " divided by ": " / ",
+            " mod ": " % ",
+            " multiply ": " * "
+        }
+
+        expr = " " + expr + " "
+
+        for k, v in replacements.items():
+            expr = expr.replace(k, v)
+
+        return expr.strip()
 
     # -------------------------
     # MAIN PIPELINE
@@ -152,13 +166,14 @@ class NLPProcessor:
             for k, v in self.synonyms.items():
                 line = re.sub(r'\b' + re.escape(k) + r'\b', v, line)
 
-            # allow inline `then`, comma-separated bodies, and inline else clauses
             line = re.sub(r'\bthen\b', ' ', line)
             line = re.sub(r',\s*', ' ', line)
             line = re.sub(r'\belse\b', ' else ', line)
-            line = re.sub(r'\b(set|assign|let|make) (\w+) as\b', r'\1 \2 to', line)  # "set x as 5" -> "set x to 5"
-            line = re.sub(r'\b(set|assign|let|make) (\w+) equal to\b', r'\1 \2 to', line)  # "set x equal to 5" -> "set x to 5"
-            line = re.sub(r'\b(set|assign|let|make) (\w+) be\b', r'\1 \2 to', line)  # "let x be 5" -> "let x to 5"
+
+            line = re.sub(r'\b(set|assign|let|make) (\w+) as\b', r'\1 \2 to', line)
+            line = re.sub(r'\b(set|assign|let|make) (\w+) equal to\b', r'\1 \2 to', line)
+            line = re.sub(r'\b(set|assign|let|make) (\w+) be\b', r'\1 \2 to', line)
+
             line = re.sub(r'\s+', ' ', line)
 
             sentences.append({
@@ -179,83 +194,111 @@ class NLPProcessor:
         # START
         match = re.match(r'(?:begin|start|commence)', sentence)
         if match:
-            remaining = sentence[match.end():].strip()
-            return "START", 1.0, {}, remaining
+            return "START", 1.0, {}, sentence[match.end():].strip()
 
         # END IF
         match = re.match(r'end (?:if|condition)', sentence)
         if match:
-            remaining = sentence[match.end():].strip()
-            return "END_IF", 0.9, {}, remaining
+            return "END_IF", 0.9, {}, sentence[match.end():].strip()
 
         # LOOP END
         match = re.match(r'(?:end (?:while|loop|for)|stop)', sentence)
         if match:
-            remaining = sentence[match.end():].strip()
-            return "LOOP_END", 0.9, {}, remaining
+            return "LOOP_END", 0.9, {}, sentence[match.end():].strip()
 
         # END
         match = re.match(r'(?:end|finish|terminate)', sentence)
         if match:
-            remaining = sentence[match.end():].strip()
-            return "END", 1.0, {}, remaining
+            return "END", 1.0, {}, sentence[match.end():].strip()
 
         # FOR LOOP
         match = re.match(r"(?:for|iterate) (\w+) (?:from|starting from|starting at) (\d+) (?:to|up to|until) (\d+)", sentence)
         if match:
             var, start, end = match.groups()
-            remaining = sentence[match.end():].strip()
-            return "FOR", 0.95, {
-                "var": var,
-                "start": start,
-                "end": end
-            }, remaining
+            return "FOR", 0.95, {"var": var, "start": start, "end": end}, sentence[match.end():].strip()
 
         # ASSIGN
         match = re.match(r'(?:set|assign|let|make) (\w+) to (.+?)(?=\b(?:if|else|for|while|print|set|assign|let|make|end)\b|$)', sentence)
         if match:
             var, value = match.groups()
-            remaining = sentence[match.end():].strip()
             return "ASSIGN", 0.95, {
                 "var": var,
-                "value": value.strip()
-            }, remaining
+                "value": self.normalize_expression(value.strip())
+            }, sentence[match.end():].strip()
 
         # INPUT
         match = re.match(r'(?:input|get) (\w+)', sentence)
         if match:
             var = match.group(1)
-            remaining = sentence[match.end():].strip()
-            return "ASSIGN", 0.95, {
-                "var": var,
-                "value": "input()"
-            }, remaining
+            return "ASSIGN", 0.95, {"var": var, "value": "input()"}, sentence[match.end():].strip()
 
         # IF
         match = re.match(r'if (.+?)(?=\b(?:print|set|if|else|for|while|end)\b|$)', sentence)
         if match:
             condition = self.translate_condition(match.group(1).strip())
-            remaining = sentence[match.end():].strip()
-            return "IF", 0.9, {"condition": condition}, remaining
+            return "IF", 0.9, {"condition": condition}, sentence[match.end():].strip()
 
         # ELSE
         match = re.match(r'(?:otherwise|else)', sentence)
         if match:
-            remaining = sentence[match.end():].strip()
-            return "ELSE", 0.9, {}, remaining
+            return "ELSE", 0.9, {}, sentence[match.end():].strip()
 
         # WHILE
         match = re.match(r'(?:while|repeat|loop) (.+?)(?=\b(?:print|set|if|else|for|end)\b|$)', sentence)
         if match:
             condition = self.translate_condition(match.group(1).strip())
+            return "WHILE", 0.9, {"condition": condition}, sentence[match.end():].strip()
+
+        # MULTIPLY OPERATION (NEW)
+        match = re.match(r'multiply (\w+) by (\d+)', sentence)
+        if match:
+            var, num = match.groups()
             remaining = sentence[match.end():].strip()
-            return "WHILE", 0.9, {"condition": condition}, remaining
+
+            return "ASSIGN", 0.9, {
+                "var": var,
+                "value": f"{var} * {num}"
+            }, remaining
+        
+        # ADD OPERATION (NEW)
+        match = re.match(r'add (\w+) by (\d+)', sentence)
+        if match:
+            var, num = match.groups()
+            remaining = sentence[match.end():].strip()
+
+            return "ASSIGN", 0.9, {
+                "var": var,
+                "value": f"{var} + {num}"
+            }, remaining
 
         # OUTPUT
         match = re.match(r'(?:print|display|show|output) (.+?)(?=\b(?:if|else|for|while|set|assign|let|make|print|display|show|output|end)\b|$)', sentence)
         if match:
+            value = match.group(1).strip()
             remaining = sentence[match.end():].strip()
-            return "OUTPUT", 0.95, {"value": match.group(1).strip()}, remaining
+
+            # 🔥 SAFE FIX: split ONLY if multiply exists
+            if " multiply " in value or " add " in value:
+                if " multiply " in value:
+                    parts = value.split(" multiply ", 1)
+                    op = "multiply"
+                elif " add " in value:
+                    parts = value.split(" add ", 1)
+                    op = "add"
+                else:
+                    parts = [value]
+
+                if len(parts) > 1:
+                    first = parts[0].strip()
+                    new_remaining = op + " " + parts[1] + " " + remaining
+
+                    return "OUTPUT", 0.95, {
+                        "value": self.normalize_expression(first)
+                    }, new_remaining.strip()
+
+            return "OUTPUT", 0.95, {
+                "value": self.normalize_expression(value)
+            }, remaining
 
         return "UNKNOWN", 0.0, {}, ""
 
@@ -265,7 +308,6 @@ class NLPProcessor:
     def translate_condition(self, text):
         text = text.replace(" mod ", " % ")
 
-        # replace longer phrases first
         for phrase, symbol in sorted(self.condition_map.items(), key=lambda kv: len(kv[0]), reverse=True):
             text = text.replace(phrase, symbol)
 

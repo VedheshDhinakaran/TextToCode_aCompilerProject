@@ -42,9 +42,16 @@ class IRBuilder:
             # ASSIGNMENT
             # =========================
             elif t == "ASSIGN":
-                code = f"{token['data']['var']} = {token['data']['value']}"
-                node = self.new_node("process", code=code, indent=indent, line=line)
+                var = token['data']['var']
+                value = token['data']['value']
 
+                # 🔥 FIX: skip auto increment inside FOR loop
+                if stack and stack[-1]["type"] == "FOR":
+                    if value.strip() == f"{var} + 1":
+                        continue
+
+                code = f"{var} = {value}"
+                node = self.new_node("process", code=code, indent=indent, line=line)
             # =========================
             # OUTPUT
             # =========================
@@ -132,7 +139,8 @@ class IRBuilder:
             elif t == "END_IF":
                 node = self.new_node("end_if", indent=indent, line=line)
                 if stack and stack[-1]["type"] == "IF":
-                    stack.pop()
+                    ctx = stack.pop()
+                    ctx["end_if_id"] = node["id"]
 
             # =========================
             # ADD NODE
@@ -147,6 +155,14 @@ class IRBuilder:
                     "from": prev_id,
                     "to": node["id"]
                 })
+                
+            if t != "ELSE":
+                for ctx in stack:
+                    if ctx["type"] == "IF" and "end_if_id" in ctx:
+                        edges.append({
+                            "from": ctx["end_if_id"],
+                            "to": node["id"]
+                        })
 
             # =========================
             # IF / ELSE EDGES
