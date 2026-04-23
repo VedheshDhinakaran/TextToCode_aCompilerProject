@@ -1,6 +1,9 @@
 class JavaGenerator:
 
-    def generate(self, node, indent=0):
+    def generate(self, node, indent=0, declared=None):
+        if declared is None:
+            declared = set()
+
         space = "    " * indent
 
         if node is None:
@@ -12,7 +15,7 @@ class JavaGenerator:
         if node.type == "program":
             code = "public class Main {\n"
             code += "    public static void main(String[] args) {\n"
-            code += self.generate(node.body, 2)
+            code += self.generate(node.body, 2, declared)
             code += "    }\n}"
             return code
 
@@ -22,13 +25,16 @@ class JavaGenerator:
         if node.type == "block":
             code = ""
             for stmt in node.statements:
-                code += self.generate(stmt, indent)
+                code += self.generate(stmt, indent, declared)
             return code
 
         # =========================
         # ASSIGNMENT
         # =========================
         if node.type == "assign":
+            if node.var in declared:
+                return f"{space}{node.var} = {node.value};\n"
+            declared.add(node.var)
             return f"{space}int {node.var} = {node.value};\n"
 
         # =========================
@@ -45,7 +51,7 @@ class JavaGenerator:
 
             if node.true_branch:
                 for stmt in node.true_branch:
-                    code += self.generate(stmt, indent + 1)
+                    code += self.generate(stmt, indent + 1, declared)
             else:
                 code += f"{space}    // empty\n"
 
@@ -54,7 +60,7 @@ class JavaGenerator:
             if node.false_branch:
                 code += " else {\n"
                 for stmt in node.false_branch:
-                    code += self.generate(stmt, indent + 1)
+                    code += self.generate(stmt, indent + 1, declared)
                 code += f"{space}}}"
 
             code += "\n"
@@ -68,7 +74,7 @@ class JavaGenerator:
 
             if node.body:
                 for stmt in node.body:
-                    code += self.generate(stmt, indent + 1)
+                    code += self.generate(stmt, indent + 1, declared)
             else:
                 code += f"{space}    // empty\n"
 
@@ -83,7 +89,7 @@ class JavaGenerator:
 
             if node.body:
                 for stmt in node.body:
-                    code += self.generate(stmt, indent + 1)
+                    code += self.generate(stmt, indent + 1, declared)
             else:
                 code += f"{space}    // empty\n"
 

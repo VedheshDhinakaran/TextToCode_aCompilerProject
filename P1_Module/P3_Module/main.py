@@ -12,40 +12,60 @@ def run_ast_pipeline(ir):
     return program
 
 
-# ✅ SAFE JSON CONVERTER
+# SAFE JSON CONVERTER
 def ast_to_dict(node):
     if node is None:
         return None
 
-    if hasattr(node, "body"):
+    node_type = getattr(node, "type", None)
+
+    if node_type == "program":
         return {
             "type": "Program",
             "body": ast_to_dict(node.body)
         }
 
-    if hasattr(node, "statements"):
+    if node_type == "block":
         return {
             "type": "Block",
             "statements": [ast_to_dict(s) for s in node.statements]
         }
 
-    if hasattr(node, "var"):
+    if node_type == "assign":
         return {
             "type": "Assignment",
             "var": node.var,
             "value": node.value
         }
 
-    if hasattr(node, "value") and not hasattr(node, "var"):
+    if node_type == "print":
         return {
             "type": "Print",
             "value": node.value
         }
 
-    if hasattr(node, "condition"):
+    if node_type == "if":
         return {
             "type": "IfElse",
-            "condition": node.condition
+            "condition": node.condition,
+            "true_branch": [ast_to_dict(s) for s in node.true_branch],
+            "false_branch": [ast_to_dict(s) for s in node.false_branch] if node.false_branch else []
+        }
+
+    if node_type == "while":
+        return {
+            "type": "WhileLoop",
+            "condition": node.condition,
+            "body": [ast_to_dict(s) for s in node.body]
+        }
+
+    if node_type == "for":
+        return {
+            "type": "ForLoop",
+            "var": node.var,
+            "start": node.start,
+            "end": node.end,
+            "body": [ast_to_dict(s) for s in node.body]
         }
 
     return str(node)
