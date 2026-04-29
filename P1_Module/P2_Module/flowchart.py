@@ -9,11 +9,8 @@ class FlowchartGenerator:
 
             nodes_list = ir["nodes"]
             edges_list = ir["edges"]
-            print("===== EDGES =====")
-            for e in edges_list:
-                print(e)
 
-            hidden_types = {"else", "end_if", "loop_end"}
+            hidden_types = {"else", "loop_end"}
             hidden_nodes = {n["id"] for n in nodes_list if n["type"] in hidden_types}
 
             # =========================
@@ -84,6 +81,9 @@ class FlowchartGenerator:
 
                 elif t == "end":
                     dot.node(node_id, "End", shape="oval")
+
+                elif t == "end_if":
+                    dot.node(node_id, "", shape="point")
 
                 elif t == "decision":
                     dot.node(node_id, node.get("condition", ""), shape="diamond")
