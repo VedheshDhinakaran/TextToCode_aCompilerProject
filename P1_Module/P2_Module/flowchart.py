@@ -136,9 +136,10 @@ class FlowchartGenerator:
                         synthetic_id = synthetic_node_counter
                         synthetic_node_counter += 1
 
-                        node_name = "upd_" + str(synthetic_id)
+                        node_name = "upd_" + str(synthetic_id)                        
                         dot.node(node_name, update_code, shape="box")
                         synthetic_update_nodes[node["id"]] = node_name
+                        
 
             # =========================
             # FIND LOOP BODIES (nodes between loop and loop_end)
@@ -254,6 +255,9 @@ class FlowchartGenerator:
                 if not actual_from or not actual_to:
                     continue
 
+                if actual_from in hidden_nodes or actual_to in hidden_nodes:
+                    continue
+
                 if actual_from == actual_to:
                     continue
                 
@@ -285,7 +289,7 @@ class FlowchartGenerator:
 
                     key2 = (synthetic_id, actual_to, "")
                     if key2 not in added:
-                        dot.edge(str(synthetic_id), str(actual_to))
+                        dot.edge(synthetic_update_nodes[loop_id], str(actual_to))
                         added.add(key2)
 
                     continue
@@ -310,7 +314,7 @@ class FlowchartGenerator:
 
                                                 key2 = (synthetic_id, actual_to, "")
                                                 if key2 not in added:
-                                                    dot.edge(str(synthetic_id), str(actual_to))
+                                                    dot.edge(synthetic_update_nodes[loop_id], str(actual_to))
                                                     added.add(key2)
 
                                                 routed = True

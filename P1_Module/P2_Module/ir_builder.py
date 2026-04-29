@@ -81,6 +81,9 @@ class IRBuilder:
 
                 if stack and stack[-1]["type"] == "IF":
                     stack[-1]["has_else"] = True
+                    # Save the last node in the true branch
+                    if prev_id:
+                        stack[-1]["true_branch_end"] = prev_id
 
             # =========================
             # WHILE
@@ -141,6 +144,20 @@ class IRBuilder:
                 if stack and stack[-1]["type"] == "IF":
                     ctx = stack.pop()
                     ctx["end_if_id"] = node["id"]
+                    
+                    # Create edges from both true and false branch endpoints to END_IF
+                    if "true_branch_end" in ctx:
+                        edges.append({
+                            "from": ctx["true_branch_end"],
+                            "to": node["id"]
+                        })
+                    
+                    # If ELSE exists, the last node in false branch is prev_id (before END_IF)
+                    if ctx.get("has_else", False) and prev_id:
+                        edges.append({
+                            "from": prev_id,
+                            "to": node["id"]
+                        })
 
             # =========================
             # ADD NODE
@@ -150,7 +167,7 @@ class IRBuilder:
             # =========================
             # NORMAL FLOW EDGE
             # =========================
-            if prev_id and prev_node and prev_node["type"] != "decision" and t != "ELSE":
+            if prev_id and prev_node and prev_node["type"] not in ["decision", "loop_end"] and t != "ELSE":
                 edges.append({
                     "from": prev_id,
                     "to": node["id"]
