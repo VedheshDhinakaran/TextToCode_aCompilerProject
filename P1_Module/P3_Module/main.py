@@ -68,4 +68,11 @@ def ast_to_dict(node):
             "body": [ast_to_dict(s) for s in node.body]
         }
 
+    if node_type == "do_while":
+        return {
+            "type": "DoWhileLoop",
+            "condition": node.condition,
+            "body": [ast_to_dict(s) for s in node.body]
+        }
+
     return str(node)

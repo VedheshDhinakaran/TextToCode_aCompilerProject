@@ -82,6 +82,21 @@ class JavaGenerator:
             return code
 
         # =========================
+        # DO-WHILE LOOP
+        # =========================
+        if node.type == "do_while":
+            code = f"{space}do {{\n"
+
+            if node.body:
+                for stmt in node.body:
+                    code += self.generate(stmt, indent + 1, declared)
+            else:
+                code += f"{space}    // empty\n"
+
+            code += f"{space}}} while ({node.condition});\n"
+            return code
+
+        # =========================
         # FOR LOOP (OPTIONAL)
         # =========================
         if node.type == "for":

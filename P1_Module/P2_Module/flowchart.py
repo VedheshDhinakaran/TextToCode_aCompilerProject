@@ -161,6 +161,7 @@ class FlowchartGenerator:
             extra_edges = []
 
             for node in nodes_list:
+                # Skip hidden nodes entirely - they should never be checked for dead-ends
                 if node["id"] in hidden_nodes:
                     continue
 
