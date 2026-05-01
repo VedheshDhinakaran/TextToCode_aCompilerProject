@@ -1,235 +1,501 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>NL to Code Compiler</title>
+<html lang="en">
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NL to Code Compiler</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
-        body {
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 25, 40, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --code-bg: #0f172a;
+            --glow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0b0f19);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 20px 40px;
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10;
         }
 
         h1 {
-            text-align: center;
-            padding: 15px;
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
             margin: 0;
-            background: #1e293b;
-            border-bottom: 2px solid #334155;
         }
 
         .container {
             display: flex;
-            height: calc(100vh - 70px);
+            gap: 24px;
+            padding: 24px 40px;
+            flex: 1;
+            height: calc(100vh - 75px);
         }
 
-        /* LEFT PANEL */
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+
         .left {
-            width: 50%;
-            padding: 15px;
-            border-right: 2px solid #334155;
+            flex: 1;
             overflow-y: auto;
+        }
+
+        .right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin: 0 0 16px 0;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
         }
 
         textarea {
             width: 100%;
-            height: 200px;
-            background: #020617;
-            color: #38bdf8;
-            border: 1px solid #334155;
-            padding: 10px;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-main);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
             font-size: 14px;
+            resize: none;
+            transition: all 0.3s ease;
+            line-height: 1.5;
         }
 
-        button {
-            background: #3b82f6;
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .btn-compile {
+            background: linear-gradient(135deg, #3b82f6, #4f46e5);
             color: white;
             border: none;
-            padding: 10px 15px;
-            margin-top: 10px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            border-radius: 5px;
+            margin-top: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            height: 52px;
         }
 
-        button:hover {
-            background: #2563eb;
+        .btn-compile:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow);
         }
 
-        /* RIGHT PANEL */
-        .right {
-            width: 50%;
-            padding: 15px;
-        }
-
-        select {
-            padding: 8px;
-            margin-bottom: 10px;
-            background: #020617;
-            color: white;
-            border: 1px solid #334155;
-        }
-
-        .code-box {
-            background: #020617;
-            padding: 15px;
-            height: 80%;
-            overflow-y: auto;
-            border: 1px solid #334155;
-            color: #22c55e;
-            white-space: pre;
-            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+        .btn-compile:active {
+            transform: translateY(0);
         }
 
         /* DEBUG BUTTONS */
+        .debug-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        .debug-section h4 {
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            margin-top: 0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
         .debug-buttons {
-            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .debug-buttons button {
-            margin: 5px 5px 5px 0;
-            background: #64748b;
+        .debug-btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--panel-border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
-        .debug-buttons button:hover {
-            background: #475569;
+        .debug-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .debug-btn.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border-color: #3b82f6;
         }
 
         .debug-output {
             display: none;
-            background: #020617;
-            padding: 10px;
-            margin-top: 10px;
-            border: 1px solid #334155;
-            white-space: pre-wrap;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            margin-top: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            color: #a78bfa;
+            font-family: 'Fira Code', monospace;
             font-size: 13px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            animation: fadeIn 0.3s ease;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
-        img {
-            margin-top: 10px;
-            border: 1px solid #334155;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
+        #flowchart {
+            margin-top: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            max-width: 100%;
+            background: white;
+            padding: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* RIGHT PANEL */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 10px;
+            color: var(--text-muted);
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        select {
+            appearance: none;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-main);
+            border: 1px solid var(--panel-border);
+            padding: 10px 36px 10px 16px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            border-color: var(--accent);
+        }
+
+        .code-box {
+            background: var(--code-bg);
+            border-radius: 12px;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid var(--panel-border);
+            color: var(--success);
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Loading indicator */
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Loading state for button */
+        .btn-compile.loading .btn-text {
+            display: none;
+        }
+
+        .btn-compile.loading .loader {
+            display: block;
+        }
     </style>
 </head>
 
 <body>
 
-<h1>🚀 Natural Language Compiler</h1>
+    <header>
+        <h1>✨ Natural Language Compiler</h1>
+    </header>
 
-<div class="container">
+    <div class="container">
+        <!-- LEFT SIDE -->
+        <div class="panel left">
+            <div class="input-group">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Input Algorithm
+                </h3>
+                <textarea id="inputText"
+                    placeholder="Describe your algorithm in natural language here...&#10;Example: Create a function that calculates the factorial of a number."></textarea>
 
-    <!-- LEFT SIDE -->
-    <div class="left">
+                <button class="btn-compile" id="compileBtn" onclick="compileText()">
+                    <span class="btn-text">Compile Code</span>
+                    <div class="loader"></div>
+                </button>
+            </div>
 
-        <h3>Input</h3>
-        <textarea id="inputText" placeholder="Enter algorithm..."></textarea>
+            <div class="debug-section">
+                <h4>Compiler Pipeline Debugger</h4>
+                <div class="debug-buttons">
+                    <button class="debug-btn" onclick="toggle('tokens', this)">Tokens</button>
+                    <button class="debug-btn" onclick="toggle('ir', this)">IR</button>
+                    <button class="debug-btn" onclick="toggle('cfg', this)">CFG</button>
+                    <button class="debug-btn" onclick="toggle('analysis', this)">Analysis</button>
+                    <button class="debug-btn" onclick="toggle('ast', this)">AST</button>
+                    <button class="debug-btn" onclick="toggle('flowchart', this)">Flowchart</button>
+                    <button class="debug-btn" onclick="toggle('errors', this)"
+                        style="border-color: rgba(239, 68, 68, 0.3); color: #fca5a5;">Errors</button>
+                </div>
 
-        <br>
-        <button onclick="compileText()">Compile</button>
+                <!-- OUTPUT BLOCKS -->
+                <div id="tokens" class="debug-output"></div>
+                <div id="ir" class="debug-output"></div>
+                <div id="cfg" class="debug-output"></div>
+                <div id="analysis" class="debug-output"></div>
+                <div id="ast" class="debug-output"></div>
+                <div id="errors" class="debug-output" style="color: #fca5a5;"></div>
 
-        <!-- DEBUG BUTTONS -->
-        <div class="debug-buttons">
-            <button onclick="toggle('tokens')">Tokens</button>
-            <button onclick="toggle('ir')">IR</button>
-            <button onclick="toggle('cfg')">CFG</button>
-            <button onclick="toggle('analysis')">Analysis</button>
-            <button onclick="toggle('ast')">AST</button>
-            <button onclick="toggle('flowchart')">Flowchart</button>
-            <button onclick="toggle('errors')">Errors</button>
+                <img id="flowchart" style="display:none" />
+            </div>
         </div>
 
-        <!-- OUTPUT BLOCKS -->
-        <div id="tokens" class="debug-output"></div>
-        <div id="ir" class="debug-output"></div>
-        <div id="cfg" class="debug-output"></div>
-        <div id="analysis" class="debug-output"></div>
-        <div id="ast" class="debug-output"></div>
-        <div id="errors" class="debug-output"></div>
+        <!-- RIGHT SIDE -->
+        <div class="panel right">
+            <div class="controls">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;">
+                        <polyline points="16 18 22 12 16 6"></polyline>
+                        <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                    Generated Code
+                </h3>
+                <div class="select-wrapper">
+                    <select id="language">
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                    </select>
+                </div>
+            </div>
 
-        <img id="flowchart" width="100%" style="display:none"/>
-
-    </div>
-
-    <!-- RIGHT SIDE -->
-    <div class="right">
-
-        <h3>Generated Code</h3>
-
-        <select id="language">
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-        </select>
-
-        <div class="code-box" id="code">
-            Your code will appear here...
+            <div class="code-box" id="code">// Your generated code will appear here...</div>
         </div>
-
     </div>
 
-</div>
+    <script>
+        let lastData = null;
 
-<script>
+        async function compileText() {
+            const text = document.getElementById("inputText").value;
+            const language = document.getElementById("language").value;
+            const btn = document.getElementById("compileBtn");
 
-let lastData = null;
+            if (!text.trim()) return;
 
-async function compileText() {
-    const text = document.getElementById("inputText").value;
-    const language = document.getElementById("language").value;
+            // Loading State
+            btn.classList.add("loading");
 
-    const response = await fetch('/compile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text, language: language })
-    });
+            try {
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, language: language })
+                });
 
-    const data = await response.json();
-    lastData = data;
+                const data = await response.json();
+                lastData = data;
 
-    // RIGHT SIDE CODE
-    document.getElementById("code").textContent = data.code;
+                // RIGHT SIDE CODE
+                document.getElementById("code").textContent = data.code || "// No code generated";
 
-    // LEFT SIDE DATA
-    document.getElementById("tokens").innerText =
-        JSON.stringify(data.tokens, null, 2);
+                // LEFT SIDE DATA
+                document.getElementById("tokens").innerText = JSON.stringify(data.tokens, null, 2) || "[]";
+                document.getElementById("ir").innerText = JSON.stringify(data.ir, null, 2) || "[]";
+                document.getElementById("cfg").innerText = JSON.stringify(data.cfg, null, 2) || "{}";
+                document.getElementById("analysis").innerText = JSON.stringify({
+                    dead_code: data.dead_code,
+                    cycles: data.cycles,
+                    branch_errors: data.branch_errors
+                }, null, 2);
+                document.getElementById("ast").innerText = JSON.stringify(data.ast, null, 2) || "{}";
+                document.getElementById("errors").innerText = JSON.stringify(data.errors, null, 2) || "[]";
 
-    document.getElementById("ir").innerText =
-        JSON.stringify(data.ir, null, 2);
+                if (data.flowchart) {
+                    const img = document.getElementById("flowchart");
+                    img.src = data.flowchart + "?t=" + new Date().getTime();
+                }
+            } catch (err) {
+                document.getElementById("code").textContent = "// Error: " + err.message;
+            } finally {
+                btn.classList.remove("loading");
+            }
+        }
 
-    document.getElementById("cfg").innerText =
-        JSON.stringify(data.cfg, null, 2);
+        function toggle(id, btnElement) {
+            const el = document.getElementById(id);
+            const isVisible = el.style.display === "block";
 
-    document.getElementById("analysis").innerText =
-        JSON.stringify({
-            dead_code: data.dead_code,
-            cycles: data.cycles,
-            branch_errors: data.branch_errors
-        }, null, 2);
+            // Hide all other outputs first for a cleaner UI experience
+            const outputs = document.querySelectorAll('.debug-output, #flowchart');
+            outputs.forEach(output => output.style.display = 'none');
 
-    document.getElementById("ast").innerText =
-        JSON.stringify(data.ast, null, 2);
+            const btns = document.querySelectorAll('.debug-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
 
-    document.getElementById("errors").innerText =
-        JSON.stringify(data.errors, null, 2);
-
-    if (data.flowchart) {
-        const img = document.getElementById("flowchart");
-        img.src = data.flowchart + "?t=" + new Date().getTime();
-    }
-}
-
-function toggle(id) {
-    const el = document.getElementById(id);
-
-    if (id === "flowchart") {
-        el.style.display = el.style.display === "none" ? "block" : "none";
-        return;
-    }
-
-    el.style.display = el.style.display === "none" ? "block" : "none";
-}
-
-</script>
-
+            if (!isVisible) {
+                el.style.display = "block";
+                if (btnElement) btnElement.classList.add('active');
+            }
+        }
+    </script>
 </body>
+
 </html>
