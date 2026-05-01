@@ -46,3 +46,10 @@ class ForLoop:
         self.start = start
         self.end = end
         self.body = body
+
+
+class DoWhileLoop:
+    def __init__(self, condition, body):
+        self.type = "do_while"
+        self.condition = condition
+        self.body = body

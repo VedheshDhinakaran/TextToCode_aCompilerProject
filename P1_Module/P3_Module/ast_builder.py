@@ -12,6 +12,7 @@ class ASTBuilder:
     def build(self, ir):
         self.nodes = ir.get("nodes", [])
         self.i = 0
+        self.node_id_to_stmt = {}  # Track which IR node IDs map to which statements
         return Program(Block(self.parse_block(is_root=True)))
 
     def should_end_block(self, node, base_indent, parent_line, is_root):
@@ -28,6 +29,7 @@ class ASTBuilder:
 
     def parse_block(self, base_indent=0, parent_line=-1, is_root=False):
         stmts = []
+        do_context = None  # Track do-while body start in stmts array
 
         while self.i < len(self.nodes):
             node = self.nodes[self.i]
@@ -45,14 +47,18 @@ class ASTBuilder:
                 code = node["code"]
                 if "=" in code:
                     var, val = code.split("=")
-                    stmts.append(Assignment(var.strip(), normalize_expr(val.strip())))
+                    stmt = Assignment(var.strip(), normalize_expr(val.strip()))
+                    stmts.append(stmt)
+                    self.node_id_to_stmt[node["id"]] = stmt
 
             # =====================
             # PRINT
             # =====================
             elif t == "output":
                 val = node["code"].replace("print(", "").replace(")", "")
-                stmts.append(Print(normalize_expr(val)))
+                stmt = Print(normalize_expr(val))
+                stmts.append(stmt)
+                self.node_id_to_stmt[node["id"]] = stmt
 
             # =====================
             # IF
@@ -74,6 +80,7 @@ class ASTBuilder:
                     false_branch = self.parse_block(base_indent=else_indent, parent_line=else_line)
 
                 stmts.append(IfElse(condition, true_branch, false_branch))
+                self.node_id_to_stmt[node["id"]] = stmts[-1]
                 continue
 
             # =====================
@@ -83,18 +90,49 @@ class ASTBuilder:
                 return stmts
 
             # =====================
-            # WHILE
+            # WHILE / DO-WHILE
             # =====================
             elif t == "loop":
                 condition = normalize_expr(node["condition"])
-                header_indent = node.get("indent", base_indent)
-                header_line = node.get("line", parent_line)
-                self.i += 1
+                
+                # Check if this is a do-while loop
+                if node.get("is_do_while"):
+                    # For do-while: extract body statements by IR node IDs
+                    first_stmt_ir_id = node.get("do_first_stmt_id")
+                    last_stmt_ir_id = node.get("do_last_stmt_id")
+                    
+                    if first_stmt_ir_id is not None and last_stmt_ir_id is not None:
+                        # Find statements that correspond to IR node IDs in the body range
+                        body = []
+                        stmts_to_remove = set()
+                        
+                        for ir_node_id, stmt in self.node_id_to_stmt.items():
+                            if first_stmt_ir_id <= ir_node_id <= last_stmt_ir_id:
+                                body.append(stmt)
+                                stmts_to_remove.add(id(stmt))
+                        
+                        # Remove body statements from stmts (by object identity)
+                        stmts = [stmt for stmt in stmts if id(stmt) not in stmts_to_remove]
+                    else:
+                        # Fallback: use all stmts as body
+                        body = stmts
+                        stmts = []
+                    
+                    stmts.append(DoWhileLoop(condition, body))
+                    self.node_id_to_stmt[node["id"]] = stmts[-1]
+                    self.i += 1
+                    continue
+                else:
+                    # For regular while: parse body after condition node
+                    header_indent = node.get("indent", base_indent)
+                    header_line = node.get("line", parent_line)
+                    self.i += 1
 
-                body = self.parse_block(base_indent=header_indent, parent_line=header_line)
-
-                stmts.append(WhileLoop(condition, body))
-                continue
+                    body = self.parse_block(base_indent=header_indent, parent_line=header_line)
+                    stmt = WhileLoop(condition, body)
+                    stmts.append(stmt)
+                    self.node_id_to_stmt[node["id"]] = stmt
+                    continue
 
             # =====================
             # 🚀 FOR LOOP (FINAL FIX)
@@ -115,7 +153,9 @@ class ASTBuilder:
                 self.i += 1
                 body = self.parse_block(base_indent=header_indent, parent_line=header_line)
 
-                stmts.append(ForLoop(var, start, end, body))
+                stmt = ForLoop(var, start, end, body)
+                stmts.append(stmt)
+                self.node_id_to_stmt[node["id"]] = stmt
                 continue
 
             # =====================
@@ -123,7 +163,10 @@ class ASTBuilder:
             # =====================
             elif t == "loop_end":
                 self.i += 1
-                return stmts
+                # Only return from nested blocks, not from root
+                if not is_root:
+                    return stmts
+                continue
 
             # =====================
             # END

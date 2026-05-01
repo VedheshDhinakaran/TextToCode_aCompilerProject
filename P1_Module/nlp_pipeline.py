@@ -218,7 +218,7 @@ class NLPProcessor:
             return "FOR", 0.95, {"var": var, "start": start, "end": end}, sentence[match.end():].strip()
 
         # ASSIGN
-        match = re.match(r'(?:set|assign|let|make) (\w+) to (.+?)(?=\b(?:if|else|for|while|print|set|assign|let|make|end)\b|$)', sentence)
+        match = re.match(r'(?:set|assign|let|make) (\w+) to (.+?)(?=\b(?:if|else|for|do|while|print|set|assign|let|make|end)\b|$)', sentence)
         if match:
             var, value = match.groups()
             return "ASSIGN", 0.95, {
@@ -233,7 +233,7 @@ class NLPProcessor:
             return "ASSIGN", 0.95, {"var": var, "value": "input()"}, sentence[match.end():].strip()
 
         # IF
-        match = re.match(r'if (.+?)(?=\b(?:print|set|if|else|for|while|end)\b|$)', sentence)
+        match = re.match(r'if (.+?)(?=\b(?:print|set|if|else|for|do|while|end)\b|$)', sentence)
         if match:
             condition = self.translate_condition(match.group(1).strip())
             return "IF", 0.9, {"condition": condition}, sentence[match.end():].strip()
@@ -243,8 +243,13 @@ class NLPProcessor:
         if match:
             return "ELSE", 0.9, {}, sentence[match.end():].strip()
 
-        # WHILE
-        match = re.match(r'(?:while|repeat|loop) (.+?)(?=\b(?:print|set|if|else|for|end)\b|$)', sentence)
+        # DO - starts do-while block (check before WHILE)
+        match = re.match(r'do\b', sentence)
+        if match:
+            return "DO", 0.95, {}, sentence[match.end():].strip()
+
+        # WHILE (regular while loop - will be converted to DO_WHILE in IR builder if preceded by DO)
+        match = re.match(r'(?:while|repeat|loop) (.+?)(?=\b(?:print|set|if|else|for|do|end)\b|$)', sentence)
         if match:
             condition = self.translate_condition(match.group(1).strip())
             return "WHILE", 0.9, {"condition": condition}, sentence[match.end():].strip()
