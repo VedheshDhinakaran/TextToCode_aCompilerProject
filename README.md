@@ -1,15 +1,6 @@
 # TextToCode_aCompilerProject
 This project converts natural language into executable code by interpreting intent from unstructured English. The system maps text to a JSON flowchart, builds a Control Flow Graph (CFG), and transforms it into an Abstract Syntax Tree (AST) to generate source code. This architecture merges compiler design with automated program synthesis.
 
-Here is your **final updated README content** with all corrections:
-
-* ✅ `app.py` inside **P1_Module**
-* ✅ `flowchart.py` inside **P2_Module**
-* ✅ `optimizer.py` inside **P3_Module**
-* ✅ Fully explained and structured
-
-You can **directly copy-paste this into your README.md** 👇
-
 ---
 
 # 🚀 Natural Language to Code Compiler
