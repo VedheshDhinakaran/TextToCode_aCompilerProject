@@ -1,501 +1,622 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NL to Code Compiler</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --panel-bg: rgba(17, 25, 40, 0.75);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --success: #10b981;
-            --code-bg: #0f172a;
-            --glow: 0 0 20px rgba(59, 130, 246, 0.5);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NL Compiler — Natural Language to Code</title>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+:root {
+  --void: #05060d;
+  --deep: #080c18;
+  --surface: rgba(12,18,36,0.85);
+  --glass: rgba(255,255,255,0.03);
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.14);
+  --cyan: #00e5ff;
+  --cyan-dim: rgba(0,229,255,0.08);
+  --cyan-glow: 0 0 20px rgba(0,229,255,0.35), 0 0 60px rgba(0,229,255,0.1);
+  --violet: #b66dff;
+  --green: #00ffa3;
+  --red: #ff4d6d;
+  --amber: #ffaa00;
+  --text: #e2e8f8;
+  --text-dim: #8892a4;
+  --text-faint: #3d4a66;
+  --mono: 'IBM Plex Mono', monospace;
+  --display: 'Oxanium', sans-serif;
+}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: radial-gradient(circle at top right, #1e293b, #0b0f19);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+html, body { height:100%; overflow:hidden; font-family:var(--mono); background:var(--void); color:var(--text); }
 
-        header {
-            padding: 20px 40px;
-            background: rgba(11, 15, 25, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--panel-border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            z-index: 10;
-        }
+/* BG */
+.bg { position:fixed; inset:0; z-index:0; pointer-events:none; }
+.bg::before {
+  content:'';
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 15% 10%, rgba(0,229,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 60% at 85% 85%, rgba(182,109,255,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0,255,163,0.03) 0%, transparent 50%);
+}
+.bg-grid {
+  position:absolute; inset:0;
+  background-image: linear-gradient(rgba(0,229,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.022) 1px, transparent 1px);
+  background-size:44px 44px;
+  mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 20%, transparent 72%);
+}
 
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 600;
-            background: linear-gradient(to right, #38bdf8, #818cf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
-            margin: 0;
-        }
+/* SCAN */
+.scan {
+  position:fixed; top:-2px; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent);
+  z-index:999; animation:scanAnim 7s ease-in-out infinite; opacity:0.45;
+}
+@keyframes scanAnim { 0%{top:-2px;opacity:0} 5%{opacity:0.5} 95%{opacity:0.25} 100%{top:100vh;opacity:0} }
 
-        .container {
-            display: flex;
-            gap: 24px;
-            padding: 24px 40px;
-            flex: 1;
-            height: calc(100vh - 75px);
-        }
+/* SHELL */
+.shell { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
 
-        .panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
+/* HEADER */
+header {
+  height:54px; flex-shrink:0;
+  display:flex; align-items:center; padding:0 28px; gap:18px;
+  background:rgba(4,5,14,0.7); backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+  position:relative;
+}
+header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent 5%, var(--cyan) 30%, var(--violet) 70%, transparent 95%);
+  opacity:0.35;
+}
 
-        .panel:hover {
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
-        }
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon {
+  width:34px; height:34px; border-radius:9px;
+  border:1px solid rgba(0,229,255,0.45);
+  background:rgba(0,229,255,0.07);
+  box-shadow:0 0 16px rgba(0,229,255,0.22), inset 0 0 10px rgba(0,229,255,0.05);
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.logo-icon::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg, rgba(0,229,255,0.12), transparent 50%);
+}
+.logo-wordmark {
+  font-family:var(--display); font-weight:700; font-size:18px; letter-spacing:0.08em;
+  background:linear-gradient(90deg, var(--cyan) 0%, #7ec8ff 50%, var(--violet) 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.logo-divider { width:1px; height:22px; background:var(--border-bright); }
+.logo-sub {
+  font-family:var(--display); font-size:10px; font-weight:500; letter-spacing:0.2em;
+  color:var(--text-faint); text-transform:uppercase;
+}
 
-        .left {
-            flex: 1;
-            overflow-y: auto;
-        }
+.hspace { flex:1; }
 
-        .right {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
+.hbadge {
+  padding:4px 13px; border-radius:20px; border:1px solid var(--border);
+  background:var(--glass); font-family:var(--display); font-size:10.5px;
+  font-weight:500; letter-spacing:0.08em; color:var(--text-dim); cursor:pointer;
+  transition:all 0.2s;
+}
+.hbadge:hover { border-color:rgba(0,229,255,0.4); color:var(--cyan); background:var(--cyan-dim); }
 
-        h3 {
-            font-size: 1.2rem;
-            font-weight: 500;
-            margin: 0 0 16px 0;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+.status-chip {
+  display:flex; align-items:center; gap:8px; padding:6px 14px;
+  border-radius:20px; border:1px solid var(--border); background:var(--glass);
+  font-family:var(--display); font-size:10.5px; letter-spacing:0.08em; color:var(--text-dim);
+}
+.sring {
+  width:8px; height:8px; border-radius:50%; background:var(--text-faint);
+  border:1.5px solid transparent; transition:all 0.4s; flex-shrink:0;
+}
+.sring.a { background:var(--green); border-color:rgba(0,255,163,0.35); box-shadow:0 0 8px var(--green); animation:gp 2s infinite; }
+.sring.b { background:var(--cyan);  border-color:rgba(0,229,255,0.35); box-shadow:0 0 8px var(--cyan);  animation:gp 0.65s infinite; }
+@keyframes gp { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
+/* WORKSPACE */
+.workspace { display:flex; flex:1; overflow:hidden; }
 
-        textarea {
-            width: 100%;
-            height: 180px;
-            background: rgba(0, 0, 0, 0.2);
-            color: var(--text-main);
-            border: 1px solid var(--panel-border);
-            border-radius: 12px;
-            padding: 16px;
-            font-family: 'Fira Code', monospace;
-            font-size: 14px;
-            resize: none;
-            transition: all 0.3s ease;
-            line-height: 1.5;
-        }
+/* LEFT */
+.left {
+  width:374px; flex-shrink:0;
+  display:flex; flex-direction:column; overflow:hidden;
+  border-right:1px solid var(--border);
+  background:rgba(5,7,18,0.55); backdrop-filter:blur(20px);
+}
 
-        textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-            background: rgba(0, 0, 0, 0.4);
-        }
+.zone { padding:22px 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
 
-        textarea::placeholder {
-            color: var(--text-muted);
-        }
+.zlabel {
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--display); font-size:9.5px; font-weight:600;
+  letter-spacing:0.2em; text-transform:uppercase; color:var(--text-faint);
+  margin-bottom:13px;
+}
+.zlabel .zline { flex:1; height:1px; background:linear-gradient(90deg, var(--border-bright), transparent); }
+.zlabel svg { flex-shrink:0; }
 
-        .btn-compile {
-            background: linear-gradient(135deg, #3b82f6, #4f46e5);
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            height: 52px;
-        }
+/* TEXTAREA */
+.ta-wrap { position:relative; }
+.ta-wrap::before {
+  content:''; position:absolute; inset:-1px; border-radius:11px;
+  background:linear-gradient(135deg, rgba(0,229,255,0.3), rgba(182,109,255,0.2), transparent 60%);
+  z-index:0; opacity:0; transition:opacity 0.3s;
+}
+.ta-wrap:focus-within::before { opacity:1; }
+textarea {
+  position:relative; z-index:1; width:100%; height:144px;
+  background:rgba(7,10,24,0.85); color:var(--text);
+  border:1px solid var(--border); border-radius:10px;
+  padding:13px 15px; font-family:var(--mono); font-size:12.5px; line-height:1.7;
+  resize:none; transition:border-color 0.25s, background 0.25s;
+}
+textarea:focus { outline:none; border-color:rgba(0,229,255,0.3); background:rgba(4,7,20,0.95); }
+textarea::placeholder { color:var(--text-faint); }
 
-        .btn-compile:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--glow);
-        }
+/* LANG */
+.lang-row { display:flex; gap:8px; margin-top:11px; }
+.lbtn {
+  flex:1; padding:9px; text-align:center; border-radius:8px;
+  border:1px solid var(--border); background:var(--glass);
+  font-family:var(--display); font-size:11px; font-weight:700;
+  letter-spacing:0.12em; color:var(--text-dim); cursor:pointer; transition:all 0.2s;
+}
+.lbtn:hover { border-color:var(--border-bright); color:var(--text); }
+.lbtn.lpy  { background:rgba(0,229,255,0.09); border-color:rgba(0,229,255,0.45); color:var(--cyan); box-shadow:inset 0 0 16px rgba(0,229,255,0.06); }
+.lbtn.ljava{ background:rgba(255,100,50,0.09); border-color:rgba(255,100,50,0.45); color:#ff7043; box-shadow:inset 0 0 16px rgba(255,100,50,0.06); }
 
-        .btn-compile:active {
-            transform: translateY(0);
-        }
+/* COMPILE BTN */
+.cbtn {
+  margin-top:11px; width:100%; height:50px;
+  border:none; border-radius:10px; cursor:pointer;
+  font-family:var(--display); font-size:12.5px; font-weight:800;
+  letter-spacing:0.22em; text-transform:uppercase;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg, #00d4f0, #00b8d4);
+  color:#030912; transition:all 0.28s;
+}
+.cbtn::before {
+  content:''; position:absolute; top:0; left:-100%; width:55%; height:100%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+  transition:left 0.55s ease;
+}
+.cbtn:hover { transform:translateY(-2px); box-shadow:var(--cyan-glow); }
+.cbtn:hover::before { left:160%; }
+.cbtn:active { transform:none; }
+.cbtn.running {
+  background:rgba(0,229,255,0.06); color:var(--cyan);
+  border:1px solid rgba(0,229,255,0.3); box-shadow:none; transform:none; cursor:wait;
+}
+.bdots { display:none; align-items:center; gap:5px; }
+.bdots span { width:5px; height:5px; border-radius:50%; background:var(--cyan); animation:bd 1.1s infinite; }
+.bdots span:nth-child(2){animation-delay:.18s} .bdots span:nth-child(3){animation-delay:.36s}
+.bdots .bdlabel { margin-left:7px; font-family:var(--display); font-size:11px; letter-spacing:0.15em; }
+@keyframes bd { 0%,80%,100%{transform:scale(0.65);opacity:0.35} 40%{transform:scale(1.2);opacity:1} }
 
-        /* DEBUG BUTTONS */
-        .debug-section {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--panel-border);
-        }
+/* PIPELINE */
+.pipe-zone { padding:14px 20px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.pipe-track { display:flex; align-items:center; }
+.pnode { display:flex; flex-direction:column; align-items:center; gap:5px; flex:none; }
+.pdot {
+  width:11px; height:11px; border-radius:50%;
+  border:1.5px solid var(--text-faint); background:transparent;
+  transition:all 0.4s; position:relative;
+}
+.pdot::after {
+  content:''; position:absolute; inset:-5px; border-radius:50%;
+  border:1px solid transparent; transition:all 0.4s;
+}
+.pnode.done .pdot { background:var(--green); border-color:var(--green); box-shadow:0 0 8px var(--green); }
+.pnode.done .pdot::after { border-color:rgba(0,255,163,0.28); }
+.pnode.run  .pdot { background:var(--cyan);  border-color:var(--cyan);  box-shadow:0 0 12px var(--cyan);  animation:gp 0.6s infinite; }
+.pnode.run  .pdot::after { border-color:rgba(0,229,255,0.35); }
+.plabel { font-family:var(--display); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-faint); transition:color 0.4s; }
+.pnode.done .plabel { color:rgba(0,255,163,0.65); }
+.pnode.run  .plabel { color:var(--cyan); }
+.pline { flex:1; height:1px; background:var(--border); margin-bottom:16px; position:relative; overflow:hidden; transition:background 0.4s; }
+.pline.lit { background:var(--green); box-shadow:0 0 4px var(--green); }
+.pline.mov::after { content:''; position:absolute; top:0; left:-50%; width:50%; height:100%; background:linear-gradient(90deg,transparent,var(--cyan),transparent); animation:pslide 0.75s infinite; }
+@keyframes pslide { to { left:150%; } }
 
-        .debug-section h4 {
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            margin-top: 0;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+/* DEBUG */
+.debug-scroll { flex:1; overflow-y:auto; padding:18px 20px; }
+.dtabs { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:13px; }
+.dtab {
+  padding:5px 11px; border-radius:6px;
+  border:1px solid var(--border); background:var(--glass);
+  font-family:var(--display); font-size:9.5px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--text-faint); cursor:pointer; transition:all 0.18s;
+}
+.dtab:hover { border-color:var(--border-bright); color:var(--text-dim); }
+.dtab.on-tok  { background:rgba(0,229,255,0.1);  border-color:rgba(0,229,255,0.5);  color:var(--cyan);   }
+.dtab.on-ir   { background:rgba(182,109,255,0.1); border-color:rgba(182,109,255,0.5);color:var(--violet); }
+.dtab.on-cfg  { background:rgba(0,255,163,0.1);  border-color:rgba(0,255,163,0.5);  color:var(--green);  }
+.dtab.on-anal { background:rgba(255,170,0,0.1);  border-color:rgba(255,170,0,0.5);  color:var(--amber);  }
+.dtab.on-flow { background:rgba(0,255,163,0.1);  border-color:rgba(0,255,163,0.5);  color:var(--green);  }
+.dtab.on-err  { background:rgba(255,77,109,0.1); border-color:rgba(255,77,109,0.5); color:var(--red);    }
+.dtab.errtab  { border-color:rgba(255,77,109,0.28); color:rgba(255,77,109,0.55); }
 
-        .debug-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+.dbout {
+  display:none; background:rgba(4,7,20,0.85); border:1px solid var(--border);
+  border-radius:10px; padding:13px 15px;
+  font-size:11.5px; line-height:1.65; white-space:pre-wrap; word-break:break-all;
+  max-height:260px; overflow-y:auto; animation:fu 0.2s ease;
+}
+.dbout.ctok  { color:#5dd8f8; }
+.dbout.cir   { color:#c4a0ff; }
+.dbout.ccfg  { color:var(--green); }
+.dbout.canal { color:var(--amber); }
+.dbout.cerr  { color:#ff7070; }
+.flowframe { display:none; background:white; border-radius:10px; padding:13px; animation:fu 0.2s ease; }
+#flowchart { max-width:100%; border-radius:5px; }
+@keyframes fu { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
 
-        .debug-btn {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-            border: 1px solid var(--panel-border);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+/* EDITOR */
+.editor { flex:1; display:flex; flex-direction:column; overflow:hidden; background:rgba(3,5,15,0.65); backdrop-filter:blur(16px); }
 
-        .debug-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-main);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
+.etopbar {
+  height:40px; flex-shrink:0;
+  display:flex; align-items:stretch;
+  background:rgba(4,6,16,0.8); border-bottom:1px solid var(--border);
+  position:relative;
+}
+.etopbar::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, var(--cyan), var(--violet)); opacity:0.22;
+}
+.etab {
+  display:flex; align-items:center; gap:9px; padding:0 20px;
+  font-size:12.5px; color:var(--text); border-right:1px solid var(--border);
+  background:rgba(0,229,255,0.04); position:relative;
+}
+.etab::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, var(--cyan), var(--violet));
+}
+.etdot { width:8px; height:8px; border-radius:50%; }
+.etdot.py  { background:var(--cyan);  box-shadow:0 0 6px var(--cyan); }
+.etdot.java{ background:#ff7043; box-shadow:0 0 6px #ff7043; }
 
-        .debug-btn.active {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            border-color: #3b82f6;
-        }
+.eactions { display:flex; align-items:center; gap:10px; margin-left:auto; padding-right:20px; }
+.eabtn {
+  padding:4px 13px; border-radius:5px; border:1px solid var(--border);
+  background:var(--glass); font-family:var(--display); font-size:9.5px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--text-faint); cursor:pointer; transition:all 0.2s;
+}
+.eabtn:hover { border-color:rgba(0,229,255,0.4); color:var(--cyan); background:var(--cyan-dim); }
+.einfo { font-family:var(--display); font-size:10.5px; color:var(--text-faint); letter-spacing:0.07em; }
 
-        .debug-output {
-            display: none;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 16px;
-            margin-top: 16px;
-            border-radius: 12px;
-            border: 1px solid var(--panel-border);
-            color: #a78bfa;
-            font-family: 'Fira Code', monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            overflow-x: auto;
-            animation: fadeIn 0.3s ease;
-            max-height: 300px;
-            overflow-y: auto;
-        }
+.ebody { flex:1; display:flex; overflow:hidden; }
+.gutter {
+  width:52px; flex-shrink:0; padding:20px 0; padding-right:14px; text-align:right;
+  font-size:12px; line-height:1.76; color:var(--text-faint);
+  background:rgba(4,6,17,0.6); border-right:1px solid var(--border);
+  user-select:none; overflow:hidden;
+}
+.codeview {
+  flex:1; padding:20px 24px; overflow:auto;
+  font-size:13px; line-height:1.76; white-space:pre; font-family:var(--mono);
+}
+.codeview.ok    { color:var(--green); }
+.codeview.empty { color:var(--text-faint); font-style:italic; }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-5px);
-            }
+/* STATUS BAR */
+.sbar {
+  height:26px; flex-shrink:0; display:flex; align-items:center;
+  padding:0 20px; gap:20px; border-top:1px solid var(--border);
+  background:rgba(3,4,14,0.85); position:relative; overflow:hidden;
+}
+.sbar::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, var(--cyan), var(--violet)); opacity:0.28;
+}
+.si { font-family:var(--display); font-size:10px; letter-spacing:0.1em; color:var(--text-faint); display:flex; align-items:center; gap:5px; }
+.si.hi { color:var(--cyan); }
+.si.mr { margin-left:auto; }
+.kbd { display:inline-flex; align-items:center; padding:1px 5px; border:1px solid var(--border-bright); border-radius:3px; background:rgba(255,255,255,0.04); font-size:10px; }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        #flowchart {
-            margin-top: 16px;
-            border-radius: 12px;
-            border: 1px solid var(--panel-border);
-            max-width: 100%;
-            background: white;
-            padding: 10px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        /* RIGHT PANEL */
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .select-wrapper {
-            position: relative;
-        }
-
-        .select-wrapper::after {
-            content: '▼';
-            font-size: 10px;
-            color: var(--text-muted);
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            pointer-events: none;
-        }
-
-        select {
-            appearance: none;
-            background: rgba(0, 0, 0, 0.3);
-            color: var(--text-main);
-            border: 1px solid var(--panel-border);
-            padding: 10px 36px 10px 16px;
-            border-radius: 8px;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        select:focus {
-            border-color: var(--accent);
-        }
-
-        .code-box {
-            background: var(--code-bg);
-            border-radius: 12px;
-            padding: 20px;
-            flex: 1;
-            overflow-y: auto;
-            border: 1px solid var(--panel-border);
-            color: var(--success);
-            font-family: 'Fira Code', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre;
-            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
-            position: relative;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Loading indicator */
-        .loader {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Loading state for button */
-        .btn-compile.loading .btn-text {
-            display: none;
-        }
-
-        .btn-compile.loading .loader {
-            display: block;
-        }
-    </style>
+/* scrollbars */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(0,229,255,0.15); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:rgba(0,229,255,0.3); }
+</style>
 </head>
-
 <body>
 
-    <header>
-        <h1>✨ Natural Language Compiler</h1>
-    </header>
+<div class="bg"><div class="bg-grid"></div></div>
+<div class="scan"></div>
 
-    <div class="container">
-        <!-- LEFT SIDE -->
-        <div class="panel left">
-            <div class="input-group">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    Input Algorithm
-                </h3>
-                <textarea id="inputText"
-                    placeholder="Describe your algorithm in natural language here...&#10;Example: Create a function that calculates the factorial of a number."></textarea>
+<div class="shell">
 
-                <button class="btn-compile" id="compileBtn" onclick="compileText()">
-                    <span class="btn-text">Compile Code</span>
-                    <div class="loader"></div>
-                </button>
-            </div>
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </div>
+      <span class="logo-wordmark">NL COMPILER</span>
+      <div class="logo-divider"></div>
+      <span class="logo-sub">Natural Language → Code</span>
+    </div>
+    <div class="hspace"></div>
+    <button class="hbadge">Docs</button>
+    <button class="hbadge">v1.0</button>
+    <div class="status-chip">
+      <div class="sring" id="sring"></div>
+      <span id="stxt">IDLE</span>
+    </div>
+  </header>
 
-            <div class="debug-section">
-                <h4>Compiler Pipeline Debugger</h4>
-                <div class="debug-buttons">
-                    <button class="debug-btn" onclick="toggle('tokens', this)">Tokens</button>
-                    <button class="debug-btn" onclick="toggle('ir', this)">IR</button>
-                    <button class="debug-btn" onclick="toggle('cfg', this)">CFG</button>
-                    <button class="debug-btn" onclick="toggle('analysis', this)">Analysis</button>
-                    <button class="debug-btn" onclick="toggle('ast', this)">AST</button>
-                    <button class="debug-btn" onclick="toggle('flowchart', this)">Flowchart</button>
-                    <button class="debug-btn" onclick="toggle('errors', this)"
-                        style="border-color: rgba(239, 68, 68, 0.3); color: #fca5a5;">Errors</button>
-                </div>
+  <div class="workspace">
 
-                <!-- OUTPUT BLOCKS -->
-                <div id="tokens" class="debug-output"></div>
-                <div id="ir" class="debug-output"></div>
-                <div id="cfg" class="debug-output"></div>
-                <div id="analysis" class="debug-output"></div>
-                <div id="ast" class="debug-output"></div>
-                <div id="errors" class="debug-output" style="color: #fca5a5;"></div>
+    <!-- LEFT PANEL -->
+    <div class="left">
 
-                <img id="flowchart" style="display:none" />
-            </div>
+      <div class="zone">
+        <div class="zlabel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Algorithm Input
+          <div class="zline"></div>
         </div>
 
-        <!-- RIGHT SIDE -->
-        <div class="panel right">
-            <div class="controls">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" style="color: #10b981;">
-                        <polyline points="16 18 22 12 16 6"></polyline>
-                        <polyline points="8 6 2 12 8 18"></polyline>
-                    </svg>
-                    Generated Code
-                </h3>
-                <div class="select-wrapper">
-                    <select id="language">
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="code-box" id="code">// Your generated code will appear here...</div>
+        <div class="ta-wrap">
+          <textarea id="inputText"
+            placeholder="// Describe your algorithm in plain English&#10;// e.g. Write a function that checks if a&#10;//      number is prime using trial division."></textarea>
         </div>
+
+        <div class="lang-row">
+          <button class="lbtn lpy" id="lpy" onclick="pickLang('python')">Python</button>
+          <button class="lbtn"     id="ljava" onclick="pickLang('java')">Java</button>
+        </div>
+
+        <button class="cbtn" id="cbtn" onclick="doCompile()">
+          <svg class="bicon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span class="blabel">COMPILE</span>
+          <div class="bdots" id="bdots">
+            <span></span><span></span><span></span>
+            <span class="bdlabel">COMPILING</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- PIPELINE -->
+      <div class="pipe-zone">
+        <div class="zlabel" style="margin-bottom:12px">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Pipeline
+          <div class="zline"></div>
+        </div>
+        <div class="pipe-track">
+          <div class="pnode" id="pn0"><div class="pdot"></div><div class="plabel">Lex</div></div>
+          <div class="pline" id="pl0"></div>
+          <div class="pnode" id="pn1"><div class="pdot"></div><div class="plabel">Parse</div></div>
+          <div class="pline" id="pl1"></div>
+          <div class="pnode" id="pn2"><div class="pdot"></div><div class="plabel">IR</div></div>
+          <div class="pline" id="pl2"></div>
+          <div class="pnode" id="pn3"><div class="pdot"></div><div class="plabel">Opt</div></div>
+          <div class="pline" id="pl3"></div>
+          <div class="pnode" id="pn4"><div class="pdot"></div><div class="plabel">Gen</div></div>
+        </div>
+      </div>
+
+      <!-- DEBUG -->
+      <div class="debug-scroll">
+        <div class="zlabel" style="margin-bottom:12px">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 8v4M12 16h.01"/></svg>
+          Debugger
+          <div class="zline"></div>
+        </div>
+
+        <div class="dtabs">
+          <button class="dtab" onclick="openDbg('dbtok','tok')">Tokens</button>
+          <button class="dtab" onclick="openDbg('dbir','ir')">IR</button>
+          <button class="dtab" onclick="openDbg('dbcfg','cfg')">CFG</button>
+          <button class="dtab" onclick="openDbg('dbanal','anal')">Analysis</button>
+          <button class="dtab" onclick="openDbg('dbtok','tok')">AST</button>
+          <button class="dtab" onclick="openDbg('dbflow','flow')">Flowchart</button>
+          <button class="dtab errtab" onclick="openDbg('dberr','err')">Errors</button>
+        </div>
+
+        <div id="dbtok"  class="dbout ctok"></div>
+        <div id="dbir"   class="dbout cir"></div>
+        <div id="dbcfg"  class="dbout ccfg"></div>
+        <div id="dbanal" class="dbout canal"></div>
+        <div id="dberr"  class="dbout cerr"></div>
+        <div id="dbflow" class="flowframe"><img id="flowchart"/></div>
+      </div>
     </div>
 
-    <script>
-        let lastData = null;
+    <!-- EDITOR -->
+    <div class="editor">
+      <div class="etopbar">
+        <div class="etab">
+          <div class="etdot py" id="etdot"></div>
+          <span id="etname">output.py</span>
+        </div>
+        <div class="eactions">
+          <span class="einfo" id="einfo">0 lines</span>
+          <button class="eabtn" onclick="doCopy()">Copy</button>
+        </div>
+      </div>
 
-        async function compileText() {
-            const text = document.getElementById("inputText").value;
-            const language = document.getElementById("language").value;
-            const btn = document.getElementById("compileBtn");
+      <div class="ebody">
+        <div class="gutter" id="gutter">1</div>
+        <div class="codeview empty" id="cv">// Awaiting compilation...</div>
+      </div>
 
-            if (!text.trim()) return;
+      <div class="sbar">
+        <div class="si hi">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+          NL COMPILER
+        </div>
+        <div class="si" id="sbLang">Python 3.12</div>
+        <div class="si" id="sbStatus">—</div>
+        <div class="si mr">
+          <span class="kbd">⌘</span><span style="margin:0 3px">+</span><span class="kbd">↵</span>
+          <span style="margin-left:6px">compile</span>
+        </div>
+      </div>
+    </div>
 
-            // Loading State
-            btn.classList.add("loading");
+  </div>
+</div>
 
-            try {
-                const response = await fetch('/compile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text, language: language })
-                });
+<select id="language" style="display:none"><option value="python">python</option><option value="java">java</option></select>
 
-                const data = await response.json();
-                lastData = data;
+<script>
+let lang = 'python';
+let activeDbg = null;
 
-                // RIGHT SIDE CODE
-                document.getElementById("code").textContent = data.code || "// No code generated";
+function pickLang(l) {
+  lang = l;
+  document.getElementById('language').value = l;
+  document.getElementById('lpy').className   = 'lbtn' + (l==='python' ? ' lpy' : '');
+  document.getElementById('ljava').className = 'lbtn' + (l==='java'   ? ' ljava' : '');
+  const py = l === 'python';
+  document.getElementById('etdot').className = 'etdot ' + (py ? 'py' : 'java');
+  document.getElementById('etname').textContent = py ? 'output.py' : 'Output.java';
+  document.getElementById('sbLang').textContent  = py ? 'Python 3.12' : 'Java 21';
+}
 
-                // LEFT SIDE DATA
-                document.getElementById("tokens").innerText = JSON.stringify(data.tokens, null, 2) || "[]";
-                document.getElementById("ir").innerText = JSON.stringify(data.ir, null, 2) || "[]";
-                document.getElementById("cfg").innerText = JSON.stringify(data.cfg, null, 2) || "{}";
-                document.getElementById("analysis").innerText = JSON.stringify({
-                    dead_code: data.dead_code,
-                    cycles: data.cycles,
-                    branch_errors: data.branch_errors
-                }, null, 2);
-                document.getElementById("ast").innerText = JSON.stringify(data.ast, null, 2) || "{}";
-                document.getElementById("errors").innerText = JSON.stringify(data.errors, null, 2) || "[]";
+function setStat(s) {
+  const r = document.getElementById('sring');
+  const t = document.getElementById('stxt');
+  const sb = document.getElementById('sbStatus');
+  r.className = 'sring' + (s==='a' ? ' a' : s==='b' ? ' b' : '');
+  if (s==='a') { t.textContent='READY';   sb.textContent='Compiled OK'; }
+  else if (s==='b') { t.textContent='RUNNING'; sb.textContent='Compiling...'; }
+  else { t.textContent='IDLE'; sb.textContent='—'; }
+}
 
-                if (data.flowchart) {
-                    const img = document.getElementById("flowchart");
-                    img.src = data.flowchart + "?t=" + new Date().getTime();
-                }
-            } catch (err) {
-                document.getElementById("code").textContent = "// Error: " + err.message;
-            } finally {
-                btn.classList.remove("loading");
-            }
-        }
+function resetPipe() {
+  for (let i=0;i<5;i++) document.getElementById('pn'+i).className='pnode';
+  for (let i=0;i<4;i++) document.getElementById('pl'+i).className='pline';
+}
 
-        function toggle(id, btnElement) {
-            const el = document.getElementById(id);
-            const isVisible = el.style.display === "block";
+function donePipe() {
+  for (let i=0;i<5;i++) document.getElementById('pn'+i).className='pnode done';
+  for (let i=0;i<4;i++) document.getElementById('pl'+i).className='pline lit';
+}
 
-            // Hide all other outputs first for a cleaner UI experience
-            const outputs = document.querySelectorAll('.debug-output, #flowchart');
-            outputs.forEach(output => output.style.display = 'none');
+function animatePipe() {
+  resetPipe();
+  let i = 0;
+  const t = setInterval(() => {
+    if (i < 5) {
+      if (i > 0) {
+        document.getElementById('pn'+(i-1)).className='pnode done';
+        if (i-1 < 4) document.getElementById('pl'+(i-1)).className='pline lit';
+      }
+      document.getElementById('pn'+i).className='pnode run';
+      if (i < 4) document.getElementById('pl'+i).className='pline mov';
+      i++;
+    } else clearInterval(t);
+  }, 280);
+  return t;
+}
 
-            const btns = document.querySelectorAll('.debug-btn');
-            btns.forEach(btn => btn.classList.remove('active'));
+function updateGutter(code) {
+  const lines = code.split('\n');
+  document.getElementById('gutter').textContent = lines.map((_,i)=>i+1).join('\n');
+  document.getElementById('einfo').textContent  = lines.length + ' lines';
+}
 
-            if (!isVisible) {
-                el.style.display = "block";
-                if (btnElement) btnElement.classList.add('active');
-            }
-        }
-    </script>
+async function doCompile() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('cbtn');
+  const lbl = btn.querySelector('.blabel');
+  const ico = btn.querySelector('.bicon');
+  const dots= document.getElementById('bdots');
+
+  btn.classList.add('running');
+  lbl.style.display = 'none';
+  ico.style.display = 'none';
+  dots.style.display = 'flex';
+  setStat('b');
+
+  const cv = document.getElementById('cv');
+  cv.className = 'codeview empty';
+  cv.textContent = '// Compiling...';
+  document.getElementById('gutter').textContent = '1';
+
+  const pt = animatePipe();
+
+  try {
+    const r = await fetch('/compile', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text, language: lang })
+    });
+    const d = await r.json();
+
+    clearInterval(pt); donePipe(); setStat('a');
+
+    const code = d.code || '// No code generated';
+    cv.className = 'codeview ok';
+    cv.textContent = code;
+    updateGutter(code);
+
+    document.getElementById('dbtok').innerText  = JSON.stringify(d.tokens, null, 2) || '[]';
+    document.getElementById('dbir').innerText   = JSON.stringify(d.ir, null, 2) || '[]';
+    document.getElementById('dbcfg').innerText  = JSON.stringify(d.cfg, null, 2) || '{}';
+    document.getElementById('dbanal').innerText = JSON.stringify({dead_code:d.dead_code,cycles:d.cycles,branch_errors:d.branch_errors}, null, 2);
+    document.getElementById('dberr').innerText  = JSON.stringify(d.errors, null, 2) || '[]';
+
+    if (d.flowchart) document.getElementById('flowchart').src = d.flowchart + '?t=' + Date.now();
+
+  } catch(e) {
+    clearInterval(pt); resetPipe(); setStat('');
+    cv.className = 'codeview empty';
+    cv.textContent = '// Error: ' + e.message;
+    updateGutter('// Error');
+  } finally {
+    btn.classList.remove('running');
+    lbl.style.display = ''; ico.style.display = ''; dots.style.display = 'none';
+  }
+}
+
+function openDbg(id, cls) {
+  const same = activeDbg === id;
+  document.querySelectorAll('.dbout,.flowframe').forEach(el => el.style.display='none');
+  document.querySelectorAll('.dtab').forEach(b => b.className = b.className.replace(/\bon-\w+\b/g,'').trim() + (b.className.includes('errtab') ? ' errtab' : ''));
+  if (!same) {
+    document.getElementById(id).style.display = 'block';
+    event.currentTarget.classList.add('on-'+cls);
+    activeDbg = id;
+  } else { activeDbg = null; }
+}
+
+function doCopy() {
+  navigator.clipboard.writeText(document.getElementById('cv').textContent).catch(()=>{});
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='Enter') { e.preventDefault(); doCompile(); }
+});
+
+// Wire AST tab to same data as tokens for now (shares dbtok)
+document.querySelectorAll('.dtab')[4].addEventListener('click', function(e) {
+  e.stopImmediatePropagation();
+  const same = activeDbg === 'dbtok';
+  document.querySelectorAll('.dbout,.flowframe').forEach(el => el.style.display='none');
+  document.querySelectorAll('.dtab').forEach(b => b.className = b.className.replace(/\bon-\w+\b/g,'').trim() + (b.className.includes('errtab') ? ' errtab' : ''));
+  if (!same) {
+    document.getElementById('dbtok').style.display='block';
+    this.classList.add('on-tok');
+    activeDbg = 'dbtok';
+  } else { activeDbg = null; }
+});
+</script>
 </body>
-
 </html>
