@@ -241,6 +241,8 @@ textarea::placeholder { color:var(--text-faint); }
 .dtab.on-ir   { background:rgba(182,109,255,0.1); border-color:rgba(182,109,255,0.5);color:var(--violet); }
 .dtab.on-cfg  { background:rgba(0,255,163,0.1);  border-color:rgba(0,255,163,0.5);  color:var(--green);  }
 .dtab.on-anal { background:rgba(255,170,0,0.1);  border-color:rgba(255,170,0,0.5);  color:var(--amber);  }
+/* FIX: dedicated AST active state */
+.dtab.on-ast  { background:rgba(126,200,255,0.1); border-color:rgba(126,200,255,0.5); color:#7ec8ff; }
 .dtab.on-flow { background:rgba(0,255,163,0.1);  border-color:rgba(0,255,163,0.5);  color:var(--green);  }
 .dtab.on-err  { background:rgba(255,77,109,0.1); border-color:rgba(255,77,109,0.5); color:var(--red);    }
 .dtab.errtab  { border-color:rgba(255,77,109,0.28); color:rgba(255,77,109,0.55); }
@@ -256,6 +258,8 @@ textarea::placeholder { color:var(--text-faint); }
 .dbout.ccfg  { color:var(--green); }
 .dbout.canal { color:var(--amber); }
 .dbout.cerr  { color:#ff7070; }
+/* FIX: dedicated AST colour — distinct from ctok */
+.dbout.cast  { color:#7ec8ff; }
 .flowframe { display:none; background:white; border-radius:10px; padding:13px; animation:fu 0.2s ease; }
 #flowchart { max-width:100%; border-radius:5px; }
 @keyframes fu { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
@@ -421,7 +425,8 @@ textarea::placeholder { color:var(--text-faint); }
           <button class="dtab" onclick="openDbg('dbir','ir')">IR</button>
           <button class="dtab" onclick="openDbg('dbcfg','cfg')">CFG</button>
           <button class="dtab" onclick="openDbg('dbanal','anal')">Analysis</button>
-          <button class="dtab" onclick="openDbg('dbtok','tok')">AST</button>
+          <!-- FIX: AST now has its own panel id and class, no more shared dbtok -->
+          <button class="dtab" onclick="openDbg('dbast','ast')">AST</button>
           <button class="dtab" onclick="openDbg('dbflow','flow')">Flowchart</button>
           <button class="dtab errtab" onclick="openDbg('dberr','err')">Errors</button>
         </div>
@@ -430,6 +435,8 @@ textarea::placeholder { color:var(--text-faint); }
         <div id="dbir"   class="dbout cir"></div>
         <div id="dbcfg"  class="dbout ccfg"></div>
         <div id="dbanal" class="dbout canal"></div>
+        <!-- FIX: dedicated AST panel -->
+        <div id="dbast"  class="dbout cast"></div>
         <div id="dberr"  class="dbout cerr"></div>
         <div id="dbflow" class="flowframe"><img id="flowchart"/></div>
       </div>
@@ -530,6 +537,18 @@ function updateGutter(code) {
   document.getElementById('einfo').textContent  = lines.length + ' lines';
 }
 
+// FIX: fallback AST builder from tokens if backend doesn't return d.ast
+function buildAst(tokens) {
+  if (!tokens || !tokens.length) return { type: 'Program', body: [] };
+  return {
+    type: 'Program',
+    body: tokens.map(t => ({
+      type: t.type ?? 'Token',
+      value: t.value ?? t
+    }))
+  };
+}
+
 async function doCompile() {
   const text = document.getElementById('inputText').value.trim();
   if (!text) return;
@@ -571,6 +590,8 @@ async function doCompile() {
     document.getElementById('dbir').innerText   = JSON.stringify(d.ir, null, 2) || '[]';
     document.getElementById('dbcfg').innerText  = JSON.stringify(d.cfg, null, 2) || '{}';
     document.getElementById('dbanal').innerText = JSON.stringify({dead_code:d.dead_code,cycles:d.cycles,branch_errors:d.branch_errors}, null, 2);
+    // FIX: populate dedicated AST panel — use d.ast if backend returns it, else build from tokens
+    document.getElementById('dbast').innerText  = JSON.stringify(d.ast ?? buildAst(d.tokens), null, 2);
     document.getElementById('dberr').innerText  = JSON.stringify(d.errors, null, 2) || '[]';
 
     if (d.flowchart) document.getElementById('flowchart').src = d.flowchart + '?t=' + Date.now();
@@ -589,7 +610,12 @@ async function doCompile() {
 function openDbg(id, cls) {
   const same = activeDbg === id;
   document.querySelectorAll('.dbout,.flowframe').forEach(el => el.style.display='none');
-  document.querySelectorAll('.dtab').forEach(b => b.className = b.className.replace(/\bon-\w+\b/g,'').trim() + (b.className.includes('errtab') ? ' errtab' : ''));
+  document.querySelectorAll('.dtab').forEach(b => {
+    b.className = b.className.replace(/\bon-\w+\b/g,'').trim();
+    if (b.className.indexOf('errtab') === -1 && b.textContent.trim() === 'Errors') {
+      b.className += ' errtab';
+    }
+  });
   if (!same) {
     document.getElementById(id).style.display = 'block';
     event.currentTarget.classList.add('on-'+cls);
@@ -605,18 +631,8 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey||e.ctrlKey) && e.key==='Enter') { e.preventDefault(); doCompile(); }
 });
 
-// Wire AST tab to same data as tokens for now (shares dbtok)
-document.querySelectorAll('.dtab')[4].addEventListener('click', function(e) {
-  e.stopImmediatePropagation();
-  const same = activeDbg === 'dbtok';
-  document.querySelectorAll('.dbout,.flowframe').forEach(el => el.style.display='none');
-  document.querySelectorAll('.dtab').forEach(b => b.className = b.className.replace(/\bon-\w+\b/g,'').trim() + (b.className.includes('errtab') ? ' errtab' : ''));
-  if (!same) {
-    document.getElementById('dbtok').style.display='block';
-    this.classList.add('on-tok');
-    activeDbg = 'dbtok';
-  } else { activeDbg = null; }
-});
+// FIX: removed the broken duplicate AST event listener that was calling
+// e.stopImmediatePropagation() and preventing the AST tab from ever opening.
 </script>
 </body>
 </html>
